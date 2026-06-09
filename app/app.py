@@ -5,8 +5,10 @@ from PIL import Image
 import numpy as np
 import cv2
 import tempfile
+import av
+import threading
 import time
-
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
 
 # ─── PAGE CONFIG ──────────────────────────────────────────
 st.set_page_config(page_title="Garbage Detection System", layout="wide")
@@ -20,8 +22,13 @@ def load_model():
 
 model = load_model()
 
+# ─── RTC CONFIG (STUN server for network traversal) ───────
+RTC_CONFIG = RTCConfiguration({
+    "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+})
+
 # ─── SIDEBAR ──────────────────────────────────────────────
-mode = st.sidebar.radio("Select Mode", ["📷 Image Upload", "🎥 Video Upload", "📹 Webcam"])
+mode = st.sidebar.radio("Select Mode", ["📷 Image Upload", "🎥 Video Upload", "📹 Live Webcam"])
 
 # ─── IMAGE MODE ───────────────────────────────────────────
 if mode == "📷 Image Upload":
@@ -36,17 +43,14 @@ if mode == "📷 Image Upload":
         with col1:
             st.image(image, caption="Original Image", use_container_width=True)
 
-        # conf=0.5 — human false detections kam honge
         results = model(img_array, conf=0.5)[0]
         annotated = results.plot()
 
         with col2:
             st.image(annotated, caption="Detected Garbage", use_container_width=True)
 
-        # Detection summary
         st.subheader("Detection Results")
         if results.boxes:
-            # Total count
             st.success(f"Total Garbage Detected: **{len(results.boxes)}**")
             for i, box in enumerate(results.boxes):
                 cls = model.names[int(box.cls)]
@@ -76,47 +80,59 @@ elif mode == "🎥 Video Upload":
             if not ret or stop:
                 break
 
-            # conf=0.5 added here too
             results = model(frame, conf=0.5)[0]
             annotated = results.plot()
             annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
             stframe.image(annotated_rgb, use_container_width=True)
 
-            # Show live count
             count = len(results.boxes)
             count_placeholder.write(f"Garbage detected in this frame: **{count}**")
 
         cap.release()
         st.success("Video processing complete!")
 
-# ─── WEBCAM MODE ──────────────────────────────────────────
-elif mode == "📹 Webcam":
+# ─── LIVE WEBCAM MODE ─────────────────────────────────────
+# ─── LIVE WEBCAM MODE ─────────────────────────────────────
+elif mode == "📹 Live Webcam":
     st.subheader("Live Webcam Detection")
-    st.info("📸 Photo lो — model detect karega")
+    st.info("🎥 Start karo — real-time garbage detection chalegi")
 
-    img_file = st.camera_input("Take a photo")
+    class GarbageDetector(VideoProcessorBase):
+        def __init__(self):
+            self.count = 0
+            self.lock = threading.Lock()
 
-    if img_file is not None:
-        image = Image.open(img_file).convert("RGB")
-        img_array = np.array(image)
+        def recv(self, frame):
+            img = frame.to_ndarray(format="bgr24")
+            results = model(img, conf=0.5)[0]
+            annotated = results.plot()
 
-        # Run detection
-        results = model(img_array, conf=0.5)[0]
-        annotated = results.plot()
+            with self.lock:
+                self.count = len(results.boxes)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.image(image, caption="Captured Photo", use_container_width=True)
-        with col2:
-            st.image(annotated, caption="Detected Garbage", use_container_width=True)
+            return av.VideoFrame.from_ndarray(
+                annotated,
+                format="bgr24"
+            )
 
-        # Detection results
-        st.subheader("Detection Results")
-        if results.boxes:
-            st.success(f"Total Garbage Detected: **{len(results.boxes)}**")
-            for i, box in enumerate(results.boxes):
-                cls = model.names[int(box.cls)]
-                conf = float(box.conf)
-                st.write(f"**Detection {i+1}:** {cls} — Confidence: `{conf:.2%}`")
-        else:
-            st.info("No garbage detected.")
+    ctx = webrtc_streamer(
+        key="garbage-live",
+        video_processor_factory=GarbageDetector,
+        rtc_configuration=RTC_CONFIG,
+        media_stream_constraints={"video": True, "audio": False},
+        async_processing=True,
+    )
+
+    if ctx.video_processor:
+        count_display = st.empty()
+
+        while ctx.state.playing:
+            with ctx.video_processor.lock:
+                count = ctx.video_processor.count
+
+            count_display.metric(
+                label="🗑️ Garbage Detected",
+                value=count
+            )
+
+            time.sleep(0.1)
