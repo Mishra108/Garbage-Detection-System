@@ -1,7 +1,5 @@
 datasets/
 runs/
-*.pt
 __pycache__/
 .venv/
 reports/
-notebooks/
