@@ -6,16 +6,7 @@ import numpy as np
 import cv2
 import tempfile
 import time
-import subprocess, sys, os, threading
 
-# ─── START FASTAPI IN BACKGROUND ──────────────────────────
-def start_fastapi():
-    subprocess.Popen([
-        sys.executable, "-m", "uvicorn",
-        "api:app", "--host", "0.0.0.0", "--port", "8000"
-    ])
-
-threading.Thread(target=start_fastapi, daemon=True).start()
 
 # ─── PAGE CONFIG ──────────────────────────────────────────
 st.set_page_config(page_title="Garbage Detection System", layout="wide")
