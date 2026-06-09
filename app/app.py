@@ -5,10 +5,6 @@ from PIL import Image
 import numpy as np
 import cv2
 import tempfile
-import av
-import threading
-import time
-from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
 
 # ─── PAGE CONFIG ──────────────────────────────────────────
 st.set_page_config(page_title="Garbage Detection System", layout="wide")
@@ -91,48 +87,3 @@ elif mode == "🎥 Video Upload":
         cap.release()
         st.success("Video processing complete!")
 
-# ─── LIVE WEBCAM MODE ─────────────────────────────────────
-# ─── LIVE WEBCAM MODE ─────────────────────────────────────
-elif mode == "📹 Live Webcam":
-    st.subheader("Live Webcam Detection")
-    st.info("🎥 Start karo — real-time garbage detection chalegi")
-
-    class GarbageDetector(VideoProcessorBase):
-        def __init__(self):
-            self.count = 0
-            self.lock = threading.Lock()
-
-        def recv(self, frame):
-            img = frame.to_ndarray(format="bgr24")
-            results = model(img, conf=0.5)[0]
-            annotated = results.plot()
-
-            with self.lock:
-                self.count = len(results.boxes)
-
-            return av.VideoFrame.from_ndarray(
-                annotated,
-                format="bgr24"
-            )
-
-    ctx = webrtc_streamer(
-        key="garbage-live",
-        video_processor_factory=GarbageDetector,
-        rtc_configuration=RTC_CONFIG,
-        media_stream_constraints={"video": True, "audio": False},
-        async_processing=True,
-    )
-
-    if ctx.video_processor:
-        count_display = st.empty()
-
-        while ctx.state.playing:
-            with ctx.video_processor.lock:
-                count = ctx.video_processor.count
-
-            count_display.metric(
-                label="🗑️ Garbage Detected",
-                value=count
-            )
-
-            time.sleep(0.1)
