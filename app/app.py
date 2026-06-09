@@ -18,14 +18,12 @@ def load_model():
 
 model = load_model()
 
-# ─── RTC CONFIG (STUN server for network traversal) ───────
-RTC_CONFIG = RTCConfiguration({
-    "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-})
 
 # ─── SIDEBAR ──────────────────────────────────────────────
-mode = st.sidebar.radio("Select Mode", ["📷 Image Upload", "🎥 Video Upload", "📹 Live Webcam"])
-
+mode = st.sidebar.radio(
+    "Select Mode",
+    ["📷 Image Upload", "🎥 Video Upload"]
+)
 # ─── IMAGE MODE ───────────────────────────────────────────
 if mode == "📷 Image Upload":
     st.subheader("Image Detection")
