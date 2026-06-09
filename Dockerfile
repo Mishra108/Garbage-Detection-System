@@ -12,9 +12,10 @@ COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Debug — test karo dono files chalti hain ya nahi
-RUN cd /app && python -c "import sys; sys.path.insert(0, 'api'); import api" || true
-RUN cd /app && python -c "import sys; sys.path.insert(0, 'app'); import streamlit" || true
+# ── DEBUG: exact structure aur import errors dikhao ──
+RUN echo "=== FOLDER STRUCTURE ===" && find /app -type f -name "*.py" | head -20
+RUN echo "=== TESTING FASTAPI IMPORT ===" && cd /app/api && python -c "from api import app; print('FastAPI OK')"
+RUN echo "=== TESTING STREAMLIT FILE ===" && cd /app/app && python -c "import ast; ast.parse(open('app.py').read()); print('Streamlit OK')"
 
 RUN mkdir -p /var/log/supervisor
 
