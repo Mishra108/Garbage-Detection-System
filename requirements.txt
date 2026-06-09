@@ -1,9 +1,7 @@
-ultralytics
 streamlit
-fastapi
-uvicorn
+ultralytics
 opencv-python-headless
-Pillow
+pillow
 numpy
-python-multipart
-gdown
+av
+streamlit-webrtc
