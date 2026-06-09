@@ -4,6 +4,8 @@
 
 This project is a Garbage Detection System built using YOLOv8 for real-time waste detection and localization in images and videos. The model identifies garbage objects and displays bounding boxes with confidence scores.
 
+## Live link : https://mishra108-garbage-detection-system-appapp-hf-deploy-ezy8ta.streamlit.app/
+
 ## Features
 
 * Image Upload Detection
